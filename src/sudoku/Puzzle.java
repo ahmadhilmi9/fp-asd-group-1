@@ -98,4 +98,43 @@ public class Puzzle {
 
         return true; // Valid placement
     }
+    // Step 2: Remove cells for the puzzle based on difficulty
+    private void removeCellsForPuzzle(int difficulty) {
+        // Calculate the number of cells to leave as "Given"
+        int cellsToLeave;
+        switch (difficulty) {
+            case 1: // Easy
+                cellsToLeave = 79; // 40 cells remain
+                break;
+            case 2: // Medium
+                cellsToLeave = 30; // 30 cells remain
+                break;
+            case 3: // Hard
+                cellsToLeave = 20; // 20 cells remain
+                break;
+            default: // Default to Easy
+                cellsToLeave = 40;
+        }
+
+        // Create a list of all cell positions
+        List<int[]> allCells = new ArrayList<>();
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; row++) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; col++) {
+                allCells.add(new int[]{row, col});
+            }
+        }
+
+        // Shuffle the cell positions
+        Collections.shuffle(allCells);
+
+        // Mark cells as "Given" or to be guessed
+        boolean[][] tempIsGiven = new boolean[SudokuConstants.GRID_SIZE][SudokuConstants.GRID_SIZE];
+        for (int i = 0; i < cellsToLeave; i++) {
+            int[] cell = allCells.get(i);
+            tempIsGiven[cell[0]][cell[1]] = true; // Mark the cell as given
+        }
+
+        // Update the isGiven array to reflect which cells are shown
+        isGiven = tempIsGiven;
+    }
 }
