@@ -254,4 +254,243 @@ public class GameBoardPanel extends JPanel {
         JOptionPane.showMessageDialog(this, "Game reset! Starting fresh...");
         newGame(1); // Default to easy difficulty
     }
+
+    private String getPossibleNumbers(int row, int col) {
+        StringBuilder possibleNumbers = new StringBuilder();
+        for (int num = 1; num <= SudokuConstants.GRID_SIZE; num++) {
+            if (!isConflict(row, col, num)) {
+                possibleNumbers.append(num).append(" ");
+            }
+        }
+        return possibleNumbers.length() > 0 ? possibleNumbers.toString() : "None";
+    }
+
+
+    /** Suggest a logical move based on the current game state */
+    private Cell getSuggestedMove() {
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; row++) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; col++) {
+                if (cells[row][col].status == CellStatus.TO_GUESS) {
+                    int correctNumber = puzzle.numbers[row][col];
+                    if (!isConflict(row, col, correctNumber)) {
+                        return cells[row][col];
+                    }
+                }
+            }
+        }
+        return null; // No suggested moves
+    }
+
+    /** Show a hint */
+    private void showHint() {
+        int selectedRow = -1, selectedCol = -1;
+        // Locate the first editable cell that is still empty
+        outer:
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; row++) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; col++) {
+                if (cells[row][col].status == CellStatus.TO_GUESS) {
+                    selectedRow = row;
+                    selectedCol = col;
+                    break outer;
+                }
+            }
+        }
+
+        if (selectedRow == -1 || selectedCol == -1) {
+            strategyArea.setText("No hints available. Puzzle might be solved!");
+            return;
+        }
+
+        // Generate hints
+        StringBuilder hintMessage = new StringBuilder("Hints:\n");
+        hintMessage.append("- Possible numbers for cell (")
+                .append(selectedRow + 1).append(", ").append(selectedCol + 1).append("): ")
+                .append(getPossibleNumbers(selectedRow, selectedCol)).append("\n");
+
+
+
+        Cell suggestedMove = getSuggestedMove();
+        if (suggestedMove != null) {
+            hintMessage.append("- Suggested move: Place ")
+                    .append(puzzle.numbers[suggestedMove.row][suggestedMove.col])
+                    .append(" in cell (").append(suggestedMove.row + 1).append(", ")
+                    .append(suggestedMove.col + 1).append(").\n");
+        }
+
+        strategyArea.setText(hintMessage.toString());
+    }
+
+    /** Update the time display */
+    public void updateTime(int secondsElapsed) {
+        timeLabel.setText("Time: " + secondsElapsed + "s");
+    }
+
+    /** Update the score display */
+    public void updateScore(int score) {
+
+        scoreLabel.setText("Score: " + score);
+    }
+
+    /**
+     * Return true if the puzzle is solved
+     * i.e., none of the cells have status of TO_GUESS or WRONG_GUESS
+     */
+    public boolean isSolved() {
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; ++row) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; ++col) {
+                if (cells[row][col].status == CellStatus.TO_GUESS || cells[row][col].status == CellStatus.WRONG_GUESS) {
+                    return false;
+                }
+            }
+        }
+
+        // Notify the parent Sudoku frame that the game is won
+        Sudoku parentFrame = (Sudoku) SwingUtilities.getWindowAncestor(this);
+        parentFrame.gameWon();
+        return true;
+    }
+
+    private void highlightSameValue(int number, int currentRow, int currentCol) {
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; row++) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; col++) {
+                // Skip the current cell
+                if (row == currentRow && col == currentCol) {
+                    continue;
+                }
+
+                // Highlight cells with the same value that are GIVEN or CORRECT_GUESS
+                if (cells[row][col].number == number &&
+                        (cells[row][col].status == CellStatus.GIVEN || cells[row][col].status == CellStatus.CORRECT_GUESS)) {
+                    cells[row][col].setBackground(Color.LIGHT_GRAY); // Highlight matching cells
+                } else {
+                    cells[row][col].paint(); // Reset non-matching cells
+                }
+            }
+        }
+    }
+
+    private void resetHighlights() {
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; row++) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; col++) {
+                cells[row][col].paint(); // Reset cell background to its default
+            }
+        }
+    }
+
+    // Inside GameBoardPanel class
+
+    // Get a specific cell for checking in Sudoku class
+    public Cell getCell(int row, int col) {
+        return cells[row][col];
+    }
+
+    // Modify your existing game logic to reflect the progress bar and time updates
+    // Jika Anda memiliki metode updateTime sebelumnya, ubah namanya
+    public void updateStatusBar(String message) {
+        statusBar.setText(message);
+    }
+
+
+    private boolean isConflict(int row, int col, int number) {
+        resetHighlights();
+
+        boolean conflict = false;
+
+        for (int i = 0; i < SudokuConstants.GRID_SIZE; i++) {
+            if (i != col && cells[row][i].number == number &&
+                    (cells[row][i].status == CellStatus.GIVEN || cells[row][i].status == CellStatus.CORRECT_GUESS)) {
+                cells[row][i].setBackground(Color.RED);
+                cells[row][col].setBackground(Color.RED);
+                conflict = true;
+            }
+        }
+
+        for (int i = 0; i < SudokuConstants.GRID_SIZE; i++) {
+            if (i != row && cells[i][col].number == number &&
+                    (cells[i][col].status == CellStatus.GIVEN || cells[i][col].status == CellStatus.CORRECT_GUESS)) {
+                cells[i][col].setBackground(Color.RED);
+                cells[row][col].setBackground(Color.RED);
+                conflict = true;
+            }
+        }
+
+        int subgridStartRow = (row / SudokuConstants.SUBGRID_SIZE) * SudokuConstants.SUBGRID_SIZE;
+        int subgridStartCol = (col / SudokuConstants.SUBGRID_SIZE) * SudokuConstants.SUBGRID_SIZE;
+
+        for (int r = subgridStartRow; r < subgridStartRow + SudokuConstants.SUBGRID_SIZE; r++) {
+            for (int c = subgridStartCol; c < subgridStartCol + SudokuConstants.SUBGRID_SIZE; c++) {
+                if ((r != row || c != col) && cells[r][c].number == number &&
+                        (cells[r][c].status == CellStatus.GIVEN || cells[r][c].status == CellStatus.CORRECT_GUESS)) {
+                    cells[r][c].setBackground(Color.RED);
+                    cells[row][col].setBackground(Color.RED);
+                    conflict = true;
+                }
+            }
+        }
+
+        return conflict;
+    }
+    private void toggleMode() {
+        isDarkMode = !isDarkMode;
+        // Switch mode for each cell
+        for (int row = 0; row < SudokuConstants.GRID_SIZE; row++) {
+            for (int col = 0; col < SudokuConstants.GRID_SIZE; col++) {
+                cells[row][col].setDarkMode(isDarkMode);
+            }
+        }
+        repaint(); // Repaint the entire panel
+    }
+
+    // Listener for cell input
+    private class CellInputListener implements KeyListener {
+        @Override
+        public void keyTyped(KeyEvent e) {
+            Cell sourceCell = (Cell) e.getSource();
+
+            char keyChar = e.getKeyChar();
+            if (keyChar < '1' || keyChar > '9') {
+                e.consume();
+                JOptionPane.showMessageDialog(null, "Invalid input. Please enter a number between 1 and 9.");
+                return;
+            }
+
+            sourceCell.setText(""); // Clear current cell value
+
+            int numberIn = Character.getNumericValue(keyChar);
+
+            // Cek apakah ada konflik
+            if (isConflict(sourceCell.row, sourceCell.col, numberIn)) {
+                sourceCell.status = CellStatus.WRONG_GUESS;
+                sourceCell.paint();
+            } else {
+                // Update angka di cell dan status jika benar
+                sourceCell.number = numberIn;
+                sourceCell.setText(String.valueOf(numberIn));
+
+                if (sourceCell.number == puzzle.numbers[sourceCell.row][sourceCell.col]) {
+                    sourceCell.status = CellStatus.CORRECT_GUESS;
+                    sourceCell.paint();
+
+                    // Perbarui status bar dengan mengurangi remaining cells jika angka benar
+                    updateStatusBar();
+                } else {
+                    sourceCell.status = CellStatus.WRONG_GUESS;
+                    sourceCell.paint();
+                }
+
+                // Highlight angka yang sama
+                highlightSameValue(numberIn, sourceCell.row, sourceCell.col);
+
+                // Cek apakah puzzle sudah selesai
+                if (isSolved()) {
+                    JOptionPane.showMessageDialog(null, "Congratulations again!");
+                }
+            }
+            e.consume();  // Konsumsi event sehingga tidak diproses lebih lanjut
+        }
+        @Override
+        public void keyPressed(KeyEvent e) {}
+        @Override
+        public void keyReleased(KeyEvent e) {}
+    }
 }
