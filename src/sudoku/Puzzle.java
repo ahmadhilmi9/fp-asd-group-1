@@ -104,7 +104,7 @@ public class Puzzle {
         int cellsToLeave;
         switch (difficulty) {
             case 1: // Easy
-                cellsToLeave = 79; // 40 cells remain
+                cellsToLeave = 60; // 40 cells remain
                 break;
             case 2: // Medium
                 cellsToLeave = 30; // 30 cells remain
